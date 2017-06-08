@@ -1,18 +1,121 @@
 <!DOCYPE html>
 <script src="d3.js" charset="utf-8"></script>
 <script>
-  d3.json("data.json", function(error, data) {
-    var spacing = 50;
-    var people = data[0]["values"];
+  var data = 0;
+
+  function getPeople() {
+    people = data[0]["values"];
+    return people;
+  }
+
+  function getRelationships(data) {
+    return data[1]["values"];
+  }
+
+  function getSpacing() {
+    return 80;
+  }
+
+  var relativesSet = [ ];
+
+  function getRelatives(relationships) {
+    relativesList = [ ];
+    relationships.forEach(function (relationship, index) {
+      var from = relationship.from;
+      var to = relationship.to;
+      relativesList[from] = relativesList[from] || [ ];
+      relativesList[from].push(to);
+      relativesList[to] = relativesList[to] || [ ];
+      relativesList[to].push(from);
+    });
+    return [...new Set(relativesList)];
+  }
+
+  function drawRelationships(data) {
+    var spacing = getSpacing();
+    var people = getPeople(data);
+    var relationships = getRelationships(data);
+    relativesSet = getRelatives(relationships);
 
     d3.select("svg")
-      .selectAll("circle")
-        .data(people)
+      .selectAll("line")
+        .data(relationships)
       .enter()
+        .append("line")
+        .attr("x1", function(d) { return people[d.from].x * spacing; })
+        .attr("y1", function(d) { return people[d.from].y * spacing; })
+        .attr("x2", function(d) { return people[d.to].x * spacing; })
+        .attr("y2", function(d) { return people[d.to].y * spacing; });
+  }
+
+  function relatives(person_id) {
+    return relativesSet[person_id];
+  }
+
+  function show_only(people) {
+    drawPeople(people);
+  }
+
+  function click(person_id) {
+    var people = getPeople();
+    var ids = relatives(person_id).concat([person_id]);
+    var visible_people = ids.map(function(item, index) {
+      return people[item];
+    });
+    show_only(visible_people);
+  }
+
+  function getPersonId(person) {
+    var index = getPeople().indexOf(person);
+    return index;
+  }
+
+  function drawTooltips() {
+    d3.select("svg")
+      .selectAll("g")
+      .selectAll("circle")
+      .selectAll("title")
+        .remove();
+
+    d3.select("svg")
+      .selectAll("g")
+      .select("circle")
+        .append("title")
+        .text(function(d) { return d.name; });
+  }
+
+  function drawPeople(people) {
+    var selection = d3.select("svg")
+      .selectAll("g")
+        .data(people);
+
+    var enter_selection = selection.enter();
+    enter_selection.append("g");
+    console.log(enter_selection);
+
+    selection.exit().remove();
+
+    var spacing = getSpacing();
+
+    d3.select("svg")
+      .selectAll("g")
+      .selectAll("circle")
+        .remove();
+
+    d3.select("svg")
+      .selectAll("g")
         .append("circle")
-        .attr("r", 10)
+        .attr("r", 25)
         .attr("cx", function(d) { return d.x * spacing; })
         .attr("cy", function(d) { return d.y * spacing; })
+        .attr("onclick", function(d, i) { return "click(" + getPersonId(d) + ");"; });
+    drawTooltips();
+  }
+
+  d3.json("data.json", function(error, incoming_data) {
+    data = incoming_data;
+    drawRelationships(data);
+    drawPeople(people);
   });
 </script>
 <style>
@@ -23,6 +126,11 @@
   svg {
     width: 800px;
     height: 600px;
+  }
+
+  line {
+    stroke: rgb(6,120,155);
+    stroke-width: 2;
   }
 
   circle {
